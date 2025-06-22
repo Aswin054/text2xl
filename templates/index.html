@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Data Extraction Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #3498db;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            background-color: #e8f4fc;
+            border-color: #2980b9;
+        }
+        .upload-area p {
+            margin: 0;
+            font-size: 16px;
+            color: #7f8c8d;
+        }
+        .upload-area i {
+            font-size: 48px;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+        #fileInput {
+            display: none;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .download-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #e74c3c;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fadbd8;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Data Extraction Tool</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <i>📄</i>
+            <p>Click to upload a PDF file or drag and drop it here</p>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+        
+        <div class="error" id="errorMessage"></div>
+        
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Processing your PDF file...</p>
+        </div>
+        
+        <div class="results" id="resultsSection">
+            <h2>Extracted Data</h2>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+            
+            <div class="download-buttons">
+                <button id="downloadText">Download Text File</button>
+                <button id="downloadExcel">Download Excel File</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultsSection = document.getElementById('resultsSection');
+            const tableBody = document.getElementById('tableBody');
+            const errorMessage = document.getElementById('errorMessage');
+            const downloadTextBtn = document.getElementById('downloadText');
+            const downloadExcelBtn = document.getElementById('downloadExcel');
+            
+            let currentFiles = {
+                text: '',
+                excel: ''
+            };
+            
+            // Handle click on upload area
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // Handle drag and drop
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '#e8f4fc';
+                uploadArea.style.borderColor = '#2980b9';
+            });
+            
+            uploadArea.addEventListener('dragleave', function() {
+                uploadArea.style.backgroundColor = '#f8fafc';
+                uploadArea.style.borderColor = '#3498db';
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '#f8fafc';
+                uploadArea.style.borderColor = '#3498db';
+                
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileUpload();
+                }
+            });
+            
+            // Handle file selection
+            fileInput.addEventListener('change', handleFileUpload);
+            
+            function handleFileUpload() {
+                const file = fileInput.files[0];
+                if (!file) return;
+                
+                // Validate file type
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    showError('Please upload a PDF file.');
+                    return;
+                }
+                
+                // Reset UI
+                hideError();
+                resultsSection.style.display = 'none';
+                loadingIndicator.style.display = 'block';
+                
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                // Send to server
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Upload failed'); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayResults(data);
+                    currentFiles.text = data.text_file;
+                    currentFiles.excel = data.excel_file;
+                })
+                .catch(error => {
+                    showError(error.message);
+                })
+                .finally(() => {
+                    loadingIndicator.style.display = 'none';
+                });
+            }
+            
+            function displayResults(data) {
+                // Clear previous results
+                tableBody.innerHTML = '';
+                
+                // Populate table with extracted data
+                for (const [field, value] of Object.entries(data.extracted_data)) {
+                    const row = document.createElement('tr');
+                    
+                    const fieldCell = document.createElement('td');
+                    fieldCell.textContent = field;
+                    row.appendChild(fieldCell);
+                    
+                    const valueCell = document.createElement('td');
+                    valueCell.textContent = value;
+                    row.appendChild(valueCell);
+                    
+                    tableBody.appendChild(row);
+                }
+                
+                // Show results section
+                resultsSection.style.display = 'block';
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+            
+            function hideError() {
+                errorMessage.style.display = 'none';
+            }
+            
+            // Handle download buttons
+            downloadTextBtn.addEventListener('click', function() {
+                if (currentFiles.text) {
+                    window.location.href = `/download/final_extracted_text.txt`;
+                }
+            });
+            
+            downloadExcelBtn.addEventListener('click', function() {
+                if (currentFiles.excel) {
+                    window.location.href = `/download/inspection_data.xlsx`;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

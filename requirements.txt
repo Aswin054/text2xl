@@ -1,0 +1,6 @@
+flask
+requests
+pdf2image
+openpyxl
+pillow
+werkzeug
