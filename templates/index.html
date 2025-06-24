@@ -3,295 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Data Extraction Tool</title>
+    <title>PDF OCR Processor</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-        .container {
             max-width: 800px;
             margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
             background: white;
             padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
+        
         h1 {
-            color: #2c3e50;
+            color: #333;
             text-align: center;
             margin-bottom: 30px;
+            font-size: 2.2em;
         }
+        
         .upload-area {
-            border: 2px dashed #3498db;
-            border-radius: 5px;
-            padding: 30px;
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
             text-align: center;
-            margin-bottom: 20px;
-            background-color: #f8fafc;
-            cursor: pointer;
-            transition: all 0.3s;
+            margin: 20px 0;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
         }
+        
         .upload-area:hover {
-            background-color: #e8f4fc;
-            border-color: #2980b9;
+            border-color: #764ba2;
+            background: #f0f2ff;
         }
-        .upload-area p {
-            margin: 0;
-            font-size: 16px;
-            color: #7f8c8d;
+        
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background: #e8f5e8;
         }
-        .upload-area i {
-            font-size: 48px;
-            color: #3498db;
-            margin-bottom: 15px;
-        }
-        #fileInput {
+        
+        input[type="file"] {
             display: none;
         }
-        button {
-            background-color: #3498db;
+        
+        .file-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
             color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
-            transition: background-color 0.3s;
+            transition: background 0.3s ease;
         }
-        button:hover {
-            background-color: #2980b9;
+        
+        .file-label:hover {
+            background: #5a6fd8;
         }
-        button:disabled {
-            background-color: #bdc3c7;
+        
+        .upload-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .upload-btn:disabled {
+            background: #cccccc;
             cursor: not-allowed;
+            transform: none;
         }
-        .results {
-            margin-top: 30px;
-            display: none;
-        }
-        table {
+        
+        .progress {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        .download-buttons {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-        }
-        .loading {
-            text-align: center;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
             margin: 20px 0;
             display: none;
         }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top: 4px solid #3498db;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
         }
+        
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .extracted-data {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            border: 1px solid #ddd;
+        }
+        
+        .download-links {
+            margin-top: 20px;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            margin: 5px 10px 5px 0;
+            padding: 8px 16px;
+            background: #2196F3;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            background: #1976D2;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .error {
-            color: #e74c3c;
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #fadbd8;
-            border-radius: 5px;
-            display: none;
+        
+        .health-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: white;
+        }
+        
+        .health-healthy {
+            background: #4CAF50;
+        }
+        
+        .health-unhealthy {
+            background: #f44336;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>PDF Data Extraction Tool</h1>
+        <h1>📄 PDF OCR Processor</h1>
         
-        <div class="upload-area" id="uploadArea">
-            <i>📄</i>
-            <p>Click to upload a PDF file or drag and drop it here</p>
-            <input type="file" id="fileInput" accept=".pdf">
-        </div>
-        
-        <div class="error" id="errorMessage"></div>
-        
-        <div class="loading" id="loadingIndicator">
-            <div class="spinner"></div>
-            <p>Processing your PDF file...</p>
-        </div>
-        
-        <div class="results" id="resultsSection">
-            <h2>Extracted Data</h2>
-            <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th>Field</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                </tbody>
-            </table>
-            
-            <div class="download-buttons">
-                <button id="downloadText">Download Text File</button>
-                <button id="downloadExcel">Download Excel File</button>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="uploadArea">
+                <p>📁 Drag and drop your PDF file here or click to select</p>
+                <label for="file" class="file-label">Choose PDF File</label>
+                <input type="file" id="file" name="file" accept=".pdf" required>
+                <div id="fileName" style="margin-top: 10px; font-weight: bold;"></div>
             </div>
+            
+            <div style="text-align: center;">
+                <button type="submit" class="upload-btn" id="uploadBtn">🚀 Process PDF</button>
+            </div>
+        </form>
+        
+        <div class="progress" id="progress">
+            <div class="progress-bar" id="progressBar"></div>
         </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your PDF... This may take a few minutes.</p>
+        </div>
+        
+        <div class="result" id="result"></div>
     </div>
+    
+    <div class="health-status" id="healthStatus">Checking...</div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const uploadArea = document.getElementById('uploadArea');
-            const fileInput = document.getElementById('fileInput');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const resultsSection = document.getElementById('resultsSection');
-            const tableBody = document.getElementById('tableBody');
-            const errorMessage = document.getElementById('errorMessage');
-            const downloadTextBtn = document.getElementById('downloadText');
-            const downloadExcelBtn = document.getElementById('downloadExcel');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('file');
+        const fileName = document.getElementById('fileName');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const healthStatus = document.getElementById('healthStatus');
+
+        // Check health status
+        checkHealth();
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                updateFileName();
+            }
+        });
+
+        fileInput.addEventListener('change', updateFileName);
+
+        function updateFileName() {
+            const file = fileInput.files[0];
+            if (file) {
+                fileName.textContent = `Selected: ${file.name}`;
+                fileName.style.color = '#4CAF50';
+            } else {
+                fileName.textContent = '';
+            }
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            let currentFiles = {
-                text: '',
-                excel: ''
-            };
-            
-            // Handle click on upload area
-            uploadArea.addEventListener('click', function() {
-                fileInput.click();
-            });
-            
-            // Handle drag and drop
-            uploadArea.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                uploadArea.style.backgroundColor = '#e8f4fc';
-                uploadArea.style.borderColor = '#2980b9';
-            });
-            
-            uploadArea.addEventListener('dragleave', function() {
-                uploadArea.style.backgroundColor = '#f8fafc';
-                uploadArea.style.borderColor = '#3498db';
-            });
-            
-            uploadArea.addEventListener('drop', function(e) {
-                e.preventDefault();
-                uploadArea.style.backgroundColor = '#f8fafc';
-                uploadArea.style.borderColor = '#3498db';
-                
-                if (e.dataTransfer.files.length) {
-                    fileInput.files = e.dataTransfer.files;
-                    handleFileUpload();
-                }
-            });
-            
-            // Handle file selection
-            fileInput.addEventListener('change', handleFileUpload);
-            
-            function handleFileUpload() {
-                const file = fileInput.files[0];
-                if (!file) return;
-                
-                // Validate file type
-                if (!file.name.toLowerCase().endsWith('.pdf')) {
-                    showError('Please upload a PDF file.');
-                    return;
-                }
-                
-                // Reset UI
-                hideError();
-                resultsSection.style.display = 'none';
-                loadingIndicator.style.display = 'block';
-                
-                // Prepare form data
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                // Send to server
-                fetch('/upload', {
+            const file = fileInput.files[0];
+            if (!file) {
+                showResult('Please select a PDF file.', 'error');
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showResult('Please select a valid PDF file.', 'error');
+                return;
+            }
+
+            if (file.size > 16 * 1024 * 1024) {
+                showResult('File size must be less than 16MB.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            uploadBtn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            progress.style.display = 'block';
+
+            // Simulate progress
+            let progressValue = 0;
+            const progressInterval = setInterval(() => {
+                progressValue += Math.random() * 15;
+                if (progressValue > 90) progressValue = 90;
+                progressBar.style.width = progressValue + '%';
+            }, 500);
+
+            try {
+                const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.error || 'Upload failed'); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    displayResults(data);
-                    currentFiles.text = data.text_file;
-                    currentFiles.excel = data.excel_file;
-                })
-                .catch(error => {
-                    showError(error.message);
-                })
-                .finally(() => {
-                    loadingIndicator.style.display = 'none';
                 });
-            }
-            
-            function displayResults(data) {
-                // Clear previous results
-                tableBody.innerHTML = '';
-                
-                // Populate table with extracted data
-                for (const [field, value] of Object.entries(data.extracted_data)) {
-                    const row = document.createElement('tr');
-                    
-                    const fieldCell = document.createElement('td');
-                    fieldCell.textContent = field;
-                    row.appendChild(fieldCell);
-                    
-                    const valueCell = document.createElement('td');
-                    valueCell.textContent = value;
-                    row.appendChild(valueCell);
-                    
-                    tableBody.appendChild(row);
+
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showResult('✅ PDF processed successfully!', 'success');
+                    displayExtractedData(data);
+                } else {
+                    showResult(`❌ Error: ${data.error}`, 'error');
                 }
-                
-                // Show results section
-                resultsSection.style.display = 'block';
+            } catch (error) {
+                clearInterval(progressInterval);
+                showResult(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                loading.style.display = 'none';
+                progress.style.display = 'none';
             }
-            
-            function showError(message) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = 'block';
-            }
-            
-            function hideError() {
-                errorMessage.style.display = 'none';
-            }
-            
-            // Handle download buttons
-            downloadTextBtn.addEventListener('click', function() {
-                if (currentFiles.text) {
-                    window.location.href = `/download/final_extracted_text.txt`;
-                }
-            });
-            
-            downloadExcelBtn.addEventListener('click', function() {
-                if (currentFiles.excel) {
-                    window.location.href = `/download/inspection_data.xlsx`;
-                }
-            });
         });
+
+        function showResult(message, type) {
+            result.className = `result ${type}`;
+            result.innerHTML = `<p><strong>${message}</strong></p>`;
+            result.style.display = 'block';
+        }
+
+        function displayExtractedData(data) {
+            let html = `<p><strong>✅ ${data.message}</strong></p>`;
+            
+            if (data.pages_processed && data.total_pages) {
+                html += `<p>📊 Pages processed: ${data.pages_processed}/${data.total_pages}</p>`;
+            }
+            
+            if (data.extracted_data) {
+                html += '<div class="extracted-data">';
+                html += '<h3>📋 Extracted Information:</h3>';
+                html += '<table border="1" style="width: 100%; border-collapse: collapse;">';
+                
+                for (const [key, value] of Object.entries(data.extracted_data)) {
+                    html += `<tr><td style="padding: 8px; font-weight: bold;">${key}</td><td style="padding: 8px;">${value}</td></tr>`;
+                }
+                
+                html += '</table></div>';
+            }
+            
+            if (data.text_file || data.excel_file) {
+                html += '<div class="download-links">';
+                html += '<h3>📥 Download Files:</h3>';
+                
+                if (data.text_file) {
+                    html += `<a href="/download/${data.text_file}" class="download-btn">📄 Download Text File</a>`;
+                }
+                
+                if (data.excel_file) {
+                    html += `<a href="/download/${data.excel_file}" class="download-btn">📊 Download Excel File</a>`;
+                }
+                
+                html += '</div>';
+            }
+            
+            result.className = 'result success';
+            result.innerHTML = html;
+            result.style.display = 'block';
+        }
+
+        async function checkHealth() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    healthStatus.textContent = '✅ System Healthy';
+                    healthStatus.className = 'health-status health-healthy';
+                } else {
+                    healthStatus.textContent = '⚠️ System Issues';
+                    healthStatus.className = 'health-status health-unhealthy';
+                }
+            } catch (error) {
+                healthStatus.textContent = '❌ Connection Error';
+                healthStatus.className = 'health-status health-unhealthy';
+            }
+        }
     </script>
 </body>
 </html>
