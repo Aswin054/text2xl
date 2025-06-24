@@ -19,7 +19,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # Update these paths in your actual deployment
 POPPLER_PATH = r"C:\poppler-24.08.0\Library\bin"
-API_KEY = "K85683062588957"  # Use your OCR.space API key
+API_KEY = "K81797551788957"  # Use your OCR.space API key
 
 @app.route('/')
 def index():
