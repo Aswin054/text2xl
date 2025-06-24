@@ -25,7 +25,7 @@ else:
     POPPLER_PATH = None  # On Linux/Mac, Poppler is system-wide
 
 # Dynamic API Key
-API_KEY = os.getenv('OCR_SPACE_API_KEY', 'K81797551788957')
+API_KEY = os.getenv('OCR_SPACE_API_KEY', 'K84473361288957')
 
 @app.route('/')
 def index():
