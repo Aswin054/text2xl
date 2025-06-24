@@ -67,36 +67,46 @@ def process_pdf(pdf_path):
         print(f"\n📄 Uploading page {i+1} to OCR.space...")
 
         with open(image_path, 'rb') as f:
-            response = requests.post(
-                'https://api.ocr.space/parse/image',
-                files={'filename': f},
-                data={
-                    'apikey': API_KEY,
-                    'language': 'eng',
-                    'isOverlayRequired': False,
-                    'OCREngine': 2
-                }
-            )
-
-        # ✅ Check HTTP status code before parsing JSON
-        if response.status_code == 200:
             try:
-                result = response.json()
+                response = requests.post(
+                    'https://api.ocr.space/parse/image',
+                    files={'filename': f},
+                    data={
+                        'apikey': API_KEY,
+                        'language': 'eng',
+                        'isOverlayRequired': False,
+                        'OCREngine': 2
+                    },
+                    timeout=60  # Added timeout to prevent hanging
+                )
+            except requests.exceptions.RequestException as req_err:
+                print(f"❌ Request failed for page {i+1}: {req_err}")
+                continue
 
-                if result.get('IsErroredOnProcessing'):
-                    print(f"❌ API Error on page {i+1}: {result.get('ErrorMessage')}")
+        if response.status_code == 200:
+            content_type = response.headers.get('Content-Type', '')
+            if 'application/json' in content_type:
+                try:
+                    result = response.json()
+
+                    if result.get('IsErroredOnProcessing'):
+                        print(f"❌ API Error on page {i+1}: {result.get('ErrorMessage')}")
+                        continue
+
+                    page_text = result['ParsedResults'][0]['ParsedText']
+                    full_extracted_text += f"\n--- Page {i+1} ---\n" + page_text
+                    print(f"✅ Text extracted from page {i+1}")
+                except Exception as json_err:
+                    print(f"❌ JSON parsing error on page {i+1}: {json_err}")
+                    print("Raw Response:", response.text)
                     continue
-
-                page_text = result['ParsedResults'][0]['ParsedText']
-                full_extracted_text += f"\n--- Page {i+1} ---\n" + page_text
-                print(f"✅ Text extracted from page {i+1}")
-            except Exception as e:
-                print(f"❌ JSON parsing error on page {i+1}: {e}")
-                print("Raw Response:", response.text)
+            else:
+                print(f"❌ Non-JSON response on page {i+1}")
+                print("Response content:", response.text)
                 continue
         else:
-            print(f"❌ HTTP Error: {response.status_code} on page {i+1}")
-            print("Raw Response:", response.text)
+            print(f"❌ HTTP Error {response.status_code} on page {i+1}")
+            print("Response content:", response.text)
             continue
 
     if not full_extracted_text.strip():
