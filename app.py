@@ -18,14 +18,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
-# Dynamic Poppler Path (✅ Windows vs. Linux compatible)
+# Dynamic Poppler Path
 if platform.system() == "Windows":
-    POPPLER_PATH = os.getenv('POPPLER_PATH', r"C:\poppler-24.08.0\Library\bin")  # Default Windows path or from environment
+    POPPLER_PATH = os.getenv('POPPLER_PATH', r"C:\poppler-24.08.0\Library\bin")
 else:
-    POPPLER_PATH = None  # On Linux/Mac (deployment), Poppler is system-wide
+    POPPLER_PATH = None  # On Linux/Mac, Poppler is system-wide
 
-# Dynamic API Key (✅ Secure for deployment)
-API_KEY = os.getenv('OCR_SPACE_API_KEY', 'K81797551788957')  # Default or from environment
+# Dynamic API Key
+API_KEY = os.getenv('OCR_SPACE_API_KEY', 'K81797551788957')
 
 @app.route('/')
 def index():
@@ -54,7 +54,6 @@ def upload_file():
         return jsonify({'error': 'Invalid file type. Only PDF files are allowed.'}), 400
 
 def process_pdf(pdf_path):
-    # === STEP 1: Convert PDF to images ===
     images = convert_from_path(pdf_path, poppler_path=POPPLER_PATH)
     print(f"✅ PDF split into {len(images)} page(s).")
 
@@ -79,21 +78,35 @@ def process_pdf(pdf_path):
                 }
             )
 
-        result = response.json()
-        try:
-            page_text = result['ParsedResults'][0]['ParsedText']
-            full_extracted_text += f"\n--- Page {i+1} ---\n" + page_text
-            print(f"✅ Text extracted from page {i+1}")
-        except Exception as e:
-            print("❌ Error extracting text from page", i+1, ":", result)
-            raise Exception(f"Failed to extract text from page {i+1}: {str(result)}")
+        # ✅ Check HTTP status code before parsing JSON
+        if response.status_code == 200:
+            try:
+                result = response.json()
 
-    # === STEP 3: Save extracted raw text ===
+                if result.get('IsErroredOnProcessing'):
+                    print(f"❌ API Error on page {i+1}: {result.get('ErrorMessage')}")
+                    continue
+
+                page_text = result['ParsedResults'][0]['ParsedText']
+                full_extracted_text += f"\n--- Page {i+1} ---\n" + page_text
+                print(f"✅ Text extracted from page {i+1}")
+            except Exception as e:
+                print(f"❌ JSON parsing error on page {i+1}: {e}")
+                print("Raw Response:", response.text)
+                continue
+        else:
+            print(f"❌ HTTP Error: {response.status_code} on page {i+1}")
+            print("Raw Response:", response.text)
+            continue
+
+    if not full_extracted_text.strip():
+        raise Exception("No text could be extracted from the PDF.")
+
     text_output_path = os.path.join(app.config['OUTPUT_FOLDER'], 'final_extracted_text.txt')
     with open(text_output_path, "w", encoding="utf-8") as f:
         f.write(full_extracted_text)
 
-    # === STEP 4: Extract structured fields using REGEX ===
+    # Extract structured fields using REGEX
     patterns = {
         "RFI NO": r"RFI\s*NO[:\s]*([^\n\r]+)",
         "Date of Inspection": r"Date\s*of\s*Inspection[:\s]*([^\n\r]+)",
@@ -108,13 +121,12 @@ def process_pdf(pdf_path):
         match = re.search(pattern, full_extracted_text, re.IGNORECASE)
         extracted_data[field] = match.group(1).strip() if match else "Not Found"
 
-    # === STEP 5: Save data to Excel ===
     excel_output_path = os.path.join(app.config['OUTPUT_FOLDER'], 'inspection_data.xlsx')
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Inspection Data"
-    ws.append(list(extracted_data.keys()))     # Header row
-    ws.append(list(extracted_data.values()))   # Data row
+    ws.append(list(extracted_data.keys()))
+    ws.append(list(extracted_data.values()))
     wb.save(excel_output_path)
 
     return {
@@ -133,4 +145,4 @@ def download_file(filename):
         return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
