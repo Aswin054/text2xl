@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import os
+import platform
 import requests
 from pdf2image import convert_from_path
 import re
@@ -17,9 +18,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
-# Update these paths in your actual deployment
-POPPLER_PATH = r"C:\poppler-24.08.0\Library\bin"
-API_KEY = "K81797551788957"  # Use your OCR.space API key
+# Dynamic Poppler Path (✅ Windows vs. Linux compatible)
+if platform.system() == "Windows":
+    POPPLER_PATH = os.getenv('POPPLER_PATH', r"C:\poppler-24.08.0\Library\bin")  # Default Windows path or from environment
+else:
+    POPPLER_PATH = None  # On Linux/Mac (deployment), Poppler is system-wide
+
+# Dynamic API Key (✅ Secure for deployment)
+API_KEY = os.getenv('OCR_SPACE_API_KEY', 'K81797551788957')  # Default or from environment
 
 @app.route('/')
 def index():
@@ -29,18 +35,17 @@ def index():
 def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     if file and file.filename.lower().endswith('.pdf'):
         filename = secure_filename(file.filename)
         pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(pdf_path)
-        
+
         try:
-            # Process the PDF
             result = process_pdf(pdf_path)
             return jsonify(result)
         except Exception as e:
@@ -53,7 +58,6 @@ def process_pdf(pdf_path):
     images = convert_from_path(pdf_path, poppler_path=POPPLER_PATH)
     print(f"✅ PDF split into {len(images)} page(s).")
 
-    # === STEP 2: Save images temporarily ===
     os.makedirs("pages", exist_ok=True)
     full_extracted_text = ""
 
